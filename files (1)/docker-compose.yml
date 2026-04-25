@@ -1,0 +1,78 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────
+#  SECOND BRAIN — Local Development Stack
+#  Services: PostgreSQL, Qdrant, pgAdmin (optional UI)
+#  Usage: docker compose up -d
+# ─────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL ────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: second_brain_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-second_brain}
+      POSTGRES_USER: ${POSTGRES_USER:-brain_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_local}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-brain_user} -d ${POSTGRES_DB:-second_brain}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Qdrant ────────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: second_brain_qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"   # REST API
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── pgAdmin (optional — comment out if not needed) ────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: second_brain_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@secondbrain.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-changeme_local}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools   # only starts with: docker compose --profile tools up -d
+
+volumes:
+  postgres_data:
+    name: second_brain_postgres_data
+  qdrant_data:
+    name: second_brain_qdrant_data
+  pgadmin_data:
+    name: second_brain_pgadmin_data
+
+networks:
+  default:
+    name: second_brain_network

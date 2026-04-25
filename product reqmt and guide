@@ -1,0 +1,498 @@
+SECOND BRAIN AI AGENT
+Product Requirements & Development Guide
+Version 1.0  |  April 2026
+
+
+1. Project Overview
+The Second Brain AI Agent is a personal intelligence system designed to serve as an always-available, continuously learning knowledge partner. It ingests content from multiple sources, remembers conversations, learns user style and preferences over time, and proactively surfaces relevant information. The system is built around Claude (Anthropic) as the primary reasoning model, orchestrated via LangGraph, with full observability via LangSmith.
+
+1.1 Vision
+A Jarvis-style personal AI agent that:
+Ingests and understands documents, websites, videos, and structured data
+Remembers everything discussed and updates its knowledge over time
+Learns the user's thinking style, preferences, and communication patterns
+Proactively surfaces relevant information without being asked
+Supports deep reasoning and exploration with reinforcement learning capabilities
+Operates with full observability, traceability, and a control plane for governance
+
+1.2 Core Principles
+Build incrementally — MVP first, expand in phases
+Every component observable from day one via LangSmith
+Claude (Anthropic) as primary reasoning model throughout
+Azure as cloud infrastructure backbone
+Simplicity over cleverness in early phases
+
+
+
+2. Phased Development Plan
+Phase 1 — MVP: Chat with Memory (Weeks 1–4)
+Goal: A working agent you can talk to that remembers your documents and conversations.
+
+Upload PDF, DOCX, TXT files to a vector store
+LangChain document loaders for parsing and chunking
+Embeddings stored in Qdrant vector database
+Raw files stored in Azure Blob Storage
+Conversational RAG — ask questions grounded in your docs
+LangGraph orchestrator with retrieval tool
+Claude generates answers from retrieved context
+Persistent conversation memory across sessions
+PostgreSQL stores full conversation history
+Recent history injected into each prompt
+Basic user profile extraction
+Key facts and preferences extracted after each session
+Stored and injected into system prompt
+Chainlit web UI (supports chat + basic voice)
+LangSmith tracing on every interaction
+
+Phase 2 — Voice + Better Memory (Weeks 5–8)
+Goal: Natural voice interaction and a memory that actively learns from every conversation.
+
+Voice input via Whisper (OpenAI) transcription
+Voice output via ElevenLabs text-to-speech
+Memory update agent — extracts and persists insights after each session
+Style learning — agent adapts tone and depth to user preferences
+Support for URL ingestion (web pages and articles)
+
+Phase 3 — Proactive + Scale (Weeks 9–12)
+Goal: Agent surfaces information unprompted and handles hundreds of documents reliably.
+
+Proactive surfacing — scheduled triggers surface relevant docs/insights
+Video ingestion — Whisper transcription + chunked vector storage
+Structured data ingestion — CSV, JSON, SQL schema awareness
+Azure infrastructure hardened for production
+Databricks integration for heavy data pipelines (if needed)
+Reinforcement learning module via DSPy objective optimization
+
+
+
+3. Functional Architecture
+3.1 System Layers
+
+Layer
+Component
+Technology
+Interface
+Web UI + Voice
+Chainlit
+Orchestration
+Agent Graph
+LangGraph
+Model
+Primary Reasoning LLM
+Claude (Anthropic API)
+Memory — Short
+Conversation History
+PostgreSQL
+Memory — Long
+User Profile + Facts
+PostgreSQL
+Memory — Semantic
+Document & Knowledge RAG
+Qdrant
+Ingestion
+Doc/URL/Video Parsers
+LangChain + Unstructured
+Storage
+Raw Files
+Azure Blob Storage
+Observability
+Traces, Runs, Evals
+LangSmith
+Infrastructure
+Container Hosting
+Azure Container Apps
+Database
+Relational Store
+Azure PostgreSQL Flexible
+
+
+3.2 Architecture Diagram (Text Representation)
+┌─────────────────────────────────────────────────────┐
+│               INTERFACE LAYER                       │
+│           Chainlit (web UI + voice)                 │
+└────────────────────┬────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────┐
+│            ORCHESTRATION LAYER                      │
+│               LangGraph Agent                       │
+│  ┌──────────────┐  ┌──────────┐  ┌─────────────┐  │
+│  │  Retrieval   │  │ Memory   │  │  Ingestion  │  │
+│  │  Tool        │  │ Tool     │  │  Tool       │  │
+│  └──────────────┘  └──────────┘  └─────────────┘  │
+└────────────────────┬────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────┐
+│                 MODEL LAYER                         │
+│            Claude (Anthropic API)                   │
+└──────────────┬──────────────────┬───────────────────┘
+               │                  │
+   ┌───────────▼──┐        ┌──────▼────────┐
+   │  Qdrant      │        │  PostgreSQL   │
+   │  Vector Store│        │  Conv History │
+   │  (doc RAG)   │        │  + User Facts │
+   └───────────┬──┘        └───────────────┘
+               │
+   ┌───────────▼──────────────────┐
+   │     INGESTION PIPELINE       │
+   │  PDF / DOCX / URL / Video    │
+   │  → chunk → embed → Qdrant    │
+   └──────────────────────────────┘
+
+
+   All layers → LangSmith (traces + evals)
+
+
+
+4. Data Flows
+4.1 Ingestion Flow
+User uploads document via Chainlit UI
+Raw file stored to Azure Blob Storage
+LangChain loader parses file → text chunks
+Chunks embedded via Claude or OpenAI embeddings
+Embeddings stored in Qdrant vector store
+Document metadata (filename, date, tags) stored in PostgreSQL
+Full trace logged to LangSmith
+
+4.2 Chat Flow
+User sends message via Chainlit
+LangGraph orchestrator receives message
+Retrieves recent conversation history from PostgreSQL
+Semantic search on Qdrant for relevant doc chunks
+Builds context window: system prompt + user profile + history + retrieved chunks
+Claude generates response
+Response returned to Chainlit UI
+Full conversation turn saved to PostgreSQL
+Full trace (input → retrieval → generation → output) logged to LangSmith
+
+4.3 Memory Update Flow
+After each conversation session ends
+LangGraph runs memory extraction pass over the session
+Claude extracts key facts, preferences, decisions, style cues
+New facts merged into user profile in PostgreSQL (dedup + update)
+Updated profile injected into system prompt for next session
+
+
+
+5. Requirements
+5.1 Functional Requirements — MVP
+
+ID
+Requirement
+Priority
+FR-01
+User can upload PDF, DOCX, and TXT files
+Must Have
+FR-02
+System chunks and embeds uploaded files into Qdrant
+Must Have
+FR-03
+User can ask questions and receive answers grounded in uploaded docs
+Must Have
+FR-04
+Conversation history persists across sessions in PostgreSQL
+Must Have
+FR-05
+System extracts and stores key user facts after each session
+Must Have
+FR-06
+User profile is injected into system prompt for personalization
+Must Have
+FR-07
+All interactions are traced end-to-end in LangSmith
+Must Have
+FR-08
+Chainlit UI provides secure authenticated chat interface
+Must Have
+FR-09
+Voice input and output supported in MVP UI
+Should Have
+FR-10
+User can view what documents have been ingested
+Should Have
+
+
+5.2 Functional Requirements — Phase 2+
+
+ID
+Requirement
+Phase
+FR-11
+URL ingestion — crawl and embed web pages
+Phase 2
+FR-12
+Memory agent actively updates user profile mid-conversation
+Phase 2
+FR-13
+Agent adapts communication style based on learned preferences
+Phase 2
+FR-14
+Video ingestion via Whisper transcription pipeline
+Phase 3
+FR-15
+Structured data ingestion (CSV, JSON) with schema awareness
+Phase 3
+FR-16
+Proactive surfacing — scheduled triggers surface relevant content
+Phase 3
+FR-17
+Control plane — define forbidden actions and approval workflows
+Phase 3
+FR-18
+DSPy RL module — optimize agent behavior against objective functions
+Phase 3
+FR-19
+Databricks integration for large-scale data pipeline processing
+Phase 3
+
+
+5.3 Non-Functional Requirements
+
+ID
+Requirement
+Target
+NFR-01
+Response latency (chat)
+< 5 seconds p95
+NFR-02
+Ingestion throughput
+10+ docs concurrently
+NFR-03
+Vector search accuracy
+> 85% relevance on test set
+NFR-04
+System availability
+> 99% uptime
+NFR-05
+Authentication
+Required on all UI routes
+NFR-06
+Data privacy
+All data scoped to user, encrypted at rest
+NFR-07
+Observability coverage
+100% of LLM calls traced
+NFR-08
+Cost per conversation
+< $0.05 per session (MVP)
+
+
+
+
+6. Technology Stack
+
+Layer
+Technology
+Purpose
+Notes
+LLM
+Claude (Anthropic API)
+Primary reasoning model
+claude-sonnet-4 recommended
+Orchestration
+LangGraph
+Agent state machine and tool routing
+MVP + all phases
+Framework
+LangChain
+Document loaders, chains, utilities
+MVP + all phases
+UI
+Chainlit
+Web chat interface with voice support
+MVP
+Vector Store
+Qdrant
+Semantic search over embedded content
+Qdrant Cloud free tier for MVP
+Database
+PostgreSQL
+Conversation history, user profile, metadata
+Azure PostgreSQL Flexible
+File Storage
+Azure Blob Storage
+Raw uploaded files
+Cheap, durable, integrates with Azure
+Observability
+LangSmith
+Full LLM trace, run, and eval dashboard
+Free tier for MVP
+Ingestion
+Unstructured.io
+Parse complex document formats
+Phase 1+
+Hosting
+Azure Container Apps
+Serverless container hosting
+Phase 1+
+Voice STT
+Whisper (OpenAI)
+Speech-to-text transcription
+Phase 2
+Voice TTS
+ElevenLabs
+Natural text-to-speech output
+Phase 2
+Web Crawl
+Crawl4AI / Firecrawl
+URL and website ingestion
+Phase 2
+RL / Optimize
+DSPy
+Prompt and agent behavior optimization
+Phase 3
+Data Pipelines
+Databricks
+Large-scale data processing
+Phase 3 (aspirational)
+
+
+
+
+7. Project Structure
+
+second-brain/
+├── ingestion/
+│   ├── loaders.py          # PDF, DOCX, TXT, URL parsers
+│   ├── chunker.py          # Text splitting strategy
+│   └── embedder.py         # Embed chunks + push to Qdrant
+├── memory/
+│   ├── conversation.py     # Save/load chat history (PostgreSQL)
+│   └── user_profile.py     # Extract + store user facts and style
+├── agents/
+│   ├── graph.py            # LangGraph agent definition + state
+│   ├── retrieval_tool.py   # Qdrant semantic search tool
+│   └── memory_tool.py      # Memory read/write tool
+├── models/
+│   └── claude.py           # Anthropic client wrapper
+├── interface/
+│   └── app.py              # Chainlit UI (chat + voice)
+├── observability/
+│   └── langsmith.py        # LangSmith tracing config
+├── db/
+│   ├── schema.sql          # PostgreSQL table definitions
+│   └── client.py           # DB connection and query helpers
+├── config/
+│   └── settings.py         # Env vars, API keys, config
+├── tests/
+│   ├── test_ingestion.py
+│   ├── test_retrieval.py
+│   └── test_memory.py
+├── docker-compose.yml      # Local: Qdrant + PostgreSQL
+├── Dockerfile              # App container
+├── requirements.txt
+├── .env.example            # Environment variable template
+└── README.md
+
+
+
+8. Azure Infrastructure (MVP)
+
+Service
+Purpose
+Est. Monthly Cost
+Azure Container Apps
+Host the agent application
+~$10–20
+Azure Blob Storage
+Raw document and file storage
+~$1–2
+Azure PostgreSQL Flexible
+Conversation history + user profile
+~$15–25
+Qdrant Cloud (free tier)
+Vector store for embeddings
+Free
+Anthropic API
+Claude LLM calls
+Pay per use (~$5–20)
+LangSmith (free tier)
+Observability and tracing
+Free
+TOTAL
+
+
+~$30–70/month
+
+
+
+
+9. Week 1 Build Plan
+The goal of Week 1 is a working end-to-end loop: upload a document, ask a question, get an answer grounded in that document, with the full trace visible in LangSmith.
+
+Day 1–2: Local Infrastructure
+Set up docker-compose with Qdrant + PostgreSQL running locally
+Create PostgreSQL schema (conversations, user_profile, documents tables)
+Verify both services running and accessible
+
+Day 3: Ingestion Pipeline
+Build loaders.py — parse PDF and TXT files with LangChain
+Build chunker.py — recursive text splitter with overlap
+Build embedder.py — embed chunks and push to Qdrant
+Test: upload a PDF, verify chunks appear in Qdrant
+
+Day 4: LangGraph Agent
+Build graph.py — minimal LangGraph agent with retrieval tool
+Build retrieval_tool.py — Qdrant semantic search
+Wire Claude as the LLM via claude.py wrapper
+Test: ask a question via Python script, verify grounded answer
+
+Day 5: UI + Observability
+Build app.py — Chainlit UI connected to LangGraph agent
+Configure LangSmith tracing in langsmith.py
+Test: full end-to-end — upload doc in UI, ask question, see trace in LangSmith
+
+
+
+10. Environment Variables
+
+# Anthropic
+ANTHROPIC_API_KEY=
+
+
+# LangSmith
+LANGCHAIN_API_KEY=
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_PROJECT=second-brain
+
+
+# Qdrant
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=                  # only needed for Qdrant Cloud
+QDRANT_COLLECTION=second_brain
+
+
+# PostgreSQL
+DATABASE_URL=postgresql://user:password@localhost:5432/second_brain
+
+
+# Azure (Phase 1 infra)
+AZURE_STORAGE_CONNECTION_STRING=
+AZURE_STORAGE_CONTAINER=documents
+
+
+
+11. Open Decisions
+
+Decision
+Options
+Status
+Embedding model
+Claude embeddings vs OpenAI ada-002
+Open
+Auth for Chainlit UI
+Basic auth vs Azure AD
+Open — basic auth for MVP
+Proactive trigger mechanism (Phase 3)
+Scheduled job vs event-driven
+Deferred to Phase 3
+RL framework (Phase 3)
+DSPy vs custom RLHF loop
+Deferred to Phase 3
+Databricks integration
+Direct connector vs Delta Lake export
+Aspirational — Phase 3+
+
+
+
+
+Second Brain AI Agent — Requirements v1.0  |  Confidential

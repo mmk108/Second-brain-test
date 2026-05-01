@@ -1,41 +1,60 @@
 # 🧠 Second Brain AI Agent
- 
+
 A personal Jarvis-style AI agent that ingests your documents, remembers your conversations, learns your thinking style, and proactively surfaces relevant knowledge. Built on Claude (Anthropic), LangGraph, and Azure.
- 
+
 ---
- 
+
 ## Vision
- 
+
 An always-on personal intelligence system that:
 - Ingests and understands documents, websites, videos, and structured data
 - Remembers everything you discuss and updates its knowledge over time
 - Learns your thinking style, preferences, and communication patterns
 - Proactively surfaces relevant information without being asked
 - Runs with full observability and traceability via LangSmith
+
 ---
- 
+
+## Core Principles
+
+- Build incrementally — MVP first, expand in phases
+- Every component observable from day one via LangSmith
+- Claude (Anthropic) as primary reasoning model throughout
+- Azure as cloud infrastructure backbone
+- Simplicity over cleverness in early phases
+
+---
+
 ## Project Status
- 
+
 > 🚧 **In Development — Phase 1 (MVP)**
- 
+
 ---
- 
+
 ## Phased Roadmap
- 
+
 ### Phase 1 — MVP: Chat with Memory (Weeks 1–4)
+Goal: A working agent you can talk to that remembers your documents and conversations.
+
 - Upload PDF, DOCX, TXT files → chunked and embedded into Qdrant
 - Ask questions grounded in your documents (RAG)
 - Conversation history persists across sessions (PostgreSQL)
 - Basic user fact and preference extraction
 - Chainlit web UI
 - Full LangSmith tracing from day one
+
 ### Phase 2 — Voice + Better Memory (Weeks 5–8)
+Goal: Natural voice interaction and a memory that actively learns from every conversation.
+
 - Voice input via Whisper (speech-to-text)
 - Voice output via ElevenLabs (text-to-speech)
 - Memory agent that actively updates user profile mid-conversation
 - URL and web page ingestion
 - Style and tone adaptation based on learned preferences
+
 ### Phase 3 — Proactive + Scale (Weeks 9–12)
+Goal: Agent surfaces information unprompted and handles hundreds of documents reliably.
+
 - Proactive surfacing — agent surfaces relevant content unprompted
 - Video ingestion via Whisper transcription pipeline
 - Structured data ingestion (CSV, JSON)
@@ -43,10 +62,11 @@ An always-on personal intelligence system that:
 - DSPy reinforcement learning module for objective optimization
 - Control plane — guardrails, forbidden actions, approval workflows
 - Databricks integration for large-scale data pipelines
+
 ---
- 
+
 ## Architecture
- 
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │               INTERFACE LAYER                       │
@@ -78,34 +98,152 @@ An always-on personal intelligence system that:
    │  PDF / DOCX / URL / Video    │
    │  → chunk → embed → Qdrant    │
    └──────────────────────────────┘
- 
+
    All layers → LangSmith (traces + evals)
 ```
- 
+
 ---
- 
+
 ## Tech Stack
- 
+
 | Layer | Technology | Notes |
 |---|---|---|
 | LLM | Claude (Anthropic API) | claude-sonnet-4 |
 | Orchestration | LangGraph | Agent state machine |
 | Framework | LangChain | Loaders, chains, utilities |
 | UI | Chainlit | Web chat + voice |
-| Vector Store | Qdrant | Semantic search |
-| Database | PostgreSQL | Conversations + user profile |
+| Vector Store | Qdrant | Semantic search (Qdrant Cloud free tier for MVP) |
+| Database | PostgreSQL | Conversations + user profile (Azure PostgreSQL Flexible) |
 | File Storage | Azure Blob Storage | Raw uploaded files |
-| Observability | LangSmith | Traces, runs, evals |
+| Observability | LangSmith | Traces, runs, evals (free tier) |
 | Ingestion | Unstructured.io | Complex document parsing |
-| Hosting | Azure Container Apps | Phase 3 |
+| Hosting | Azure Container Apps | Phase 1+ |
 | Voice STT | Whisper (OpenAI) | Phase 2 |
 | Voice TTS | ElevenLabs | Phase 2 |
+| Web Crawl | Crawl4AI / Firecrawl | Phase 2 |
 | RL / Optimize | DSPy | Phase 3 |
- 
+| Data Pipelines | Databricks | Phase 3 (aspirational) |
+
 ---
- 
+
+## Requirements
+
+### Functional Requirements — MVP
+
+| ID | Requirement | Priority |
+|---|---|---|
+| FR-01 | User can upload PDF, DOCX, and TXT files | Must Have |
+| FR-02 | System chunks and embeds uploaded files into Qdrant | Must Have |
+| FR-03 | User can ask questions and receive answers grounded in uploaded docs | Must Have |
+| FR-04 | Conversation history persists across sessions in PostgreSQL | Must Have |
+| FR-05 | System extracts and stores key user facts after each session | Must Have |
+| FR-06 | User profile is injected into system prompt for personalization | Must Have |
+| FR-07 | All interactions are traced end-to-end in LangSmith | Must Have |
+| FR-08 | Chainlit UI provides secure authenticated chat interface | Must Have |
+| FR-09 | Voice input and output supported in MVP UI | Should Have |
+| FR-10 | User can view what documents have been ingested | Should Have |
+
+### Functional Requirements — Phase 2+
+
+| ID | Requirement | Phase |
+|---|---|---|
+| FR-11 | URL ingestion — crawl and embed web pages | Phase 2 |
+| FR-12 | Memory agent actively updates user profile mid-conversation | Phase 2 |
+| FR-13 | Agent adapts communication style based on learned preferences | Phase 2 |
+| FR-14 | Video ingestion via Whisper transcription pipeline | Phase 3 |
+| FR-15 | Structured data ingestion (CSV, JSON) with schema awareness | Phase 3 |
+| FR-16 | Proactive surfacing — scheduled triggers surface relevant content | Phase 3 |
+| FR-17 | Control plane — define forbidden actions and approval workflows | Phase 3 |
+| FR-18 | DSPy RL module — optimize agent behavior against objective functions | Phase 3 |
+| FR-19 | Databricks integration for large-scale data pipeline processing | Phase 3 |
+
+### Non-Functional Requirements
+
+| ID | Requirement | Target |
+|---|---|---|
+| NFR-01 | Response latency (chat) | < 5 seconds p95 |
+| NFR-02 | Ingestion throughput | 10+ docs concurrently |
+| NFR-03 | Vector search accuracy | > 85% relevance on test set |
+| NFR-04 | System availability | > 99% uptime |
+| NFR-05 | Authentication | Required on all UI routes |
+| NFR-06 | Data privacy | All data scoped to user, encrypted at rest |
+| NFR-07 | Observability coverage | 100% of LLM calls traced |
+| NFR-08 | Cost per conversation | < $0.05 per session (MVP) |
+
+---
+
+## Data Flows
+
+### Ingestion Flow
+1. User uploads document via Chainlit UI
+2. Raw file stored to Azure Blob Storage
+3. LangChain loader parses file → text chunks
+4. Chunks embedded and stored in Qdrant vector store
+5. Document metadata (filename, date, tags) stored in PostgreSQL
+6. Full trace logged to LangSmith
+
+### Chat Flow
+1. User sends message via Chainlit
+2. LangGraph orchestrator receives message
+3. Retrieves recent conversation history from PostgreSQL
+4. Semantic search on Qdrant for relevant doc chunks
+5. Builds context window: system prompt + user profile + history + retrieved chunks
+6. Claude generates response
+7. Response returned to Chainlit UI
+8. Full conversation turn saved to PostgreSQL
+9. Full trace logged to LangSmith
+
+### Memory Update Flow
+1. After each conversation session ends
+2. LangGraph runs memory extraction pass over the session
+3. Claude extracts key facts, preferences, decisions, style cues
+4. New facts merged into user profile in PostgreSQL (dedup + update)
+5. Updated profile injected into system prompt for next session
+
+---
+
+## Week 1 Build Plan
+
+Goal: A working end-to-end loop — upload a document, ask a question, get an answer grounded in that document, with the full trace visible in LangSmith.
+
+**Day 1–2: Local Infrastructure**
+- Set up docker-compose with Qdrant + PostgreSQL running locally
+- Create PostgreSQL schema (conversations, user_profile, documents tables)
+- Verify both services running and accessible
+
+**Day 3: Ingestion Pipeline**
+- Build `loaders.py` — parse PDF and TXT files with LangChain
+- Build `chunker.py` — recursive text splitter with overlap
+- Build `embedder.py` — embed chunks and push to Qdrant
+- Test: upload a PDF, verify chunks appear in Qdrant
+
+**Day 4: LangGraph Agent**
+- Build `graph.py` — minimal LangGraph agent with retrieval tool
+- Build `retrieval_tool.py` — Qdrant semantic search
+- Wire Claude as the LLM via `claude.py` wrapper
+- Test: ask a question via Python script, verify grounded answer
+
+**Day 5: UI + Observability**
+- Build `app.py` — Chainlit UI connected to LangGraph agent
+- Configure LangSmith tracing in `langsmith.py`
+- Test: full end-to-end — upload doc in UI, ask question, see trace in LangSmith
+
+---
+
+## Open Decisions
+
+| Decision | Options | Status |
+|---|---|---|
+| Embedding model | Claude embeddings vs OpenAI ada-002 | Open |
+| Auth for Chainlit UI | Basic auth vs Azure AD | Open — basic auth for MVP |
+| Proactive trigger mechanism (Phase 3) | Scheduled job vs event-driven | Deferred to Phase 3 |
+| RL framework (Phase 3) | DSPy vs custom RLHF loop | Deferred to Phase 3 |
+| Databricks integration | Direct connector vs Delta Lake export | Aspirational — Phase 3+ |
+
+---
+
 ## Project Structure
- 
+
 ```
 second-brain/
 ├── ingestion/
@@ -113,103 +251,101 @@ second-brain/
 │   ├── chunker.py            # Text splitting strategy
 │   └── embedder.py           # Embed chunks + push to Qdrant
 ├── memory/
-│   ├── conversation.py       # Save/load chat history
-│   └── user_profile.py       # Extract + store user facts
+│   ├── conversation.py       # Save/load chat history (PostgreSQL)
+│   └── user_profile.py       # Extract + store user facts and style
 ├── agents/
-│   ├── graph.py              # LangGraph agent definition
+│   ├── graph.py              # LangGraph agent definition + state
 │   ├── retrieval_tool.py     # Qdrant semantic search tool
 │   └── memory_tool.py        # Memory read/write tool
 ├── models/
 │   └── claude.py             # Anthropic client wrapper
 ├── interface/
-│   └── app.py                # Chainlit UI
+│   └── app.py                # Chainlit UI (chat + voice)
 ├── observability/
 │   └── langsmith.py          # LangSmith tracing config
 ├── db/
 │   ├── schema.sql            # PostgreSQL table definitions
-│   └── client.py             # DB connection helpers
+│   └── client.py             # DB connection and query helpers
 ├── config/
-│   └── settings.py           # Env vars and config
+│   └── settings.py           # Env vars, API keys, config
 ├── tests/
+│   ├── test_ingestion.py
+│   ├── test_retrieval.py
+│   └── test_memory.py
 ├── docker-compose.yml        # Local: Qdrant + PostgreSQL
 ├── Dockerfile                # App container
 ├── requirements.txt
 ├── .env.example              # Environment variable template
 └── README.md
 ```
- 
+
 ---
- 
+
 ## Local Infrastructure
- 
+
 ### What Runs Locally (Mac mini)
 | Service | Port | Purpose |
 |---|---|---|
 | PostgreSQL | 5432 | Conversation history + user profile |
 | Qdrant | 6333 | Vector store for document embeddings |
 | Chainlit App | 8000 | Web UI |
- 
+
 ### What Runs in the Cloud (APIs)
 | Service | Purpose |
 |---|---|
 | Anthropic API | Claude LLM inference |
 | LangSmith | Observability and tracing |
- 
+
 ### Hardware (Mac mini M4)
 The entire local stack uses ~2GB RAM. A Mac mini M4 with 24GB RAM and 512GB storage is the recommended setup — it runs all Docker services locally during MVP development and is future-proofed for running local models later.
- 
+
 ---
- 
+
 ## Getting Started
- 
+
 ### Prerequisites
 - Mac mini M4 (or any Mac/Linux machine)
 - Docker Desktop installed
 - Python 3.11+
 - Anthropic API key — [console.anthropic.com](https://console.anthropic.com)
 - LangSmith API key — [smith.langchain.com](https://smith.langchain.com) (free)
+
 ### 1. Run the setup script
 ```bash
 chmod +x setup-mac-mini.sh
 ./setup-mac-mini.sh
 ```
- 
+
 ### 2. Fill in your API keys
 ```bash
 cp .env.example .env
 nano .env
 ```
- 
-Required for MVP:
-```
-ANTHROPIC_API_KEY=your_key_here
-LANGCHAIN_API_KEY=your_key_here
-```
- 
+
 ### 3. Start local services
 ```bash
 docker compose up -d
 ```
- 
+
 ### 4. Verify services are running
 ```bash
 docker compose ps
 curl http://localhost:6333/healthz    # Qdrant
 docker exec second_brain_postgres pg_isready -U brain_user
 ```
- 
+
 ### 5. Run the app
 ```bash
 source .venv/bin/activate
 chainlit run interface/app.py
 ```
- 
+
 Open [http://localhost:8000](http://localhost:8000) in your browser.
- 
+
 ---
- 
+
 ## Database Schema
- 
+
 | Table | Purpose |
 |---|---|
 | `documents` | Every ingested file — status, metadata, blob path |
@@ -217,40 +353,56 @@ Open [http://localhost:8000](http://localhost:8000) in your browser.
 | `messages` | Every message turn with LangSmith run ID |
 | `user_profile` | Extracted facts, preferences, and style notes |
 | `ingestion_jobs` | Async queue for embed, transcribe, crawl jobs |
- 
+
 ---
- 
+
 ## Environment Variables
- 
-See `.env.example` for the full list. Key variables:
- 
+
 ```bash
-# Required
+# Anthropic
 ANTHROPIC_API_KEY=
+
+# LangSmith
 LANGCHAIN_API_KEY=
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_PROJECT=second-brain
- 
-# Local services (defaults work out of the box)
+
+# Qdrant
 QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=                  # only needed for Qdrant Cloud
+QDRANT_COLLECTION=second_brain
+
+# PostgreSQL
 DATABASE_URL=postgresql://brain_user:changeme_local@localhost:5432/second_brain
- 
-# Phase 3 — Azure (leave blank for MVP)
+
+# Azure (Phase 1 infra)
 AZURE_STORAGE_CONNECTION_STRING=
+AZURE_STORAGE_CONTAINER=documents
 ```
- 
+
 ---
- 
+
+## Azure Infrastructure & Cost (MVP)
+
+| Service | Purpose | Est. Monthly Cost |
+|---|---|---|
+| Azure Container Apps | Host the agent application | ~$10–20 |
+| Azure Blob Storage | Raw document and file storage | ~$1–2 |
+| Azure PostgreSQL Flexible | Conversation history + user profile | ~$15–25 |
+| Qdrant Cloud (free tier) | Vector store for embeddings | Free |
+| Anthropic API | Claude LLM calls | ~$5–20 |
+| LangSmith (free tier) | Observability and tracing | Free |
+| **Total** | | **~$30–70/month** |
+
+---
+
 ## Connecting from MacBook via VS Code Remote SSH
- 
-Once the Mac mini is set up and SSH is enabled:
- 
+
 1. Install the **Remote - SSH** extension in VS Code
 2. `Cmd+Shift+P` → `Remote-SSH: Connect to Host`
 3. Enter `username@mac-mini-ip`
 4. Open folder `~/second-brain`
-All editing, terminal commands, and debugging now run on the Mac mini. Your MacBook is just a display.
- 
+
 Add to `~/.ssh/config` on your MacBook for convenience:
 ```
 Host secondbrain
@@ -258,52 +410,25 @@ Host secondbrain
     User your_username
     IdentityFile ~/.ssh/id_ed25519
 ```
- 
+
 ---
- 
-## Cost (MVP Phase)
- 
-| Item | Cost |
-|---|---|
-| Mac mini M4 24GB/512GB | $999 one-time |
-| Anthropic API | ~$5–20/month |
-| LangSmith | Free |
-| Qdrant (local) | Free |
-| PostgreSQL (local) | Free |
-| **Monthly running cost** | **~$5–20/month** |
- 
----
- 
-## Files in This Repo
- 
-| File | Description |
-|---|---|
-| `README.md` | This file — project overview and quick start |
-| `SETUP.md` | Full detailed setup guide for Mac mini |
-| `setup-mac-mini.sh` | One-command Mac mini setup script |
-| `docker-compose.yml` | Local Qdrant + PostgreSQL services |
-| `schema.sql` | PostgreSQL table definitions |
-| `.env.example` | Environment variable template |
-| `second-brain-requirements.docx` | Full product requirements document |
- 
----
- 
+
 ## Key Design Decisions
- 
+
 - **Claude as primary LLM throughout all phases** — no model switching
 - **LangGraph for orchestration** — stateful agent graphs with clear control flow
 - **Local Docker for MVP** — faster iteration, zero cloud cost during development
 - **LangSmith from day one** — observability is not an afterthought
 - **Azure for Phase 3 only** — move to cloud when the MVP is proven
 - **Phased approach** — ship a working MVP before adding voice, proactive features, or RL
+
 ---
- 
+
 ## Roadmap Beyond Phase 3
- 
+
 - Multi-user support
 - Mobile interface
 - OTel full telemetry pipeline
 - Open Policy Agent (OPA) for control plane governance
 - Fine-tuning on personal interaction history
 - Databricks Delta Lake for large-scale knowledge pipelines
----

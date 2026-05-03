@@ -1,9 +1,9 @@
 import os
-import tempfile
 
 import chainlit as cl
 
 from agents.graph import run_agent
+from config.settings import validate_required
 from ingestion.embedder import ingest_document
 from memory.conversation import (
     create_conversation,
@@ -14,6 +14,7 @@ from memory.conversation import (
 from memory.user_profile import extract_and_store
 from observability.langsmith import configure_tracing
 
+validate_required()
 configure_tracing()
 
 
@@ -36,24 +37,25 @@ async def on_message(message: cl.Message):
             if hasattr(element, "path") and element.path:
                 filename = element.name
                 file_type = os.path.splitext(filename)[1].lstrip(".").lower()
-                status_msg = await cl.Message(content=f"Ingesting {filename}...").send()
+                await cl.Message(content=f"Ingesting **{filename}**...").send()
                 try:
                     doc_id = ingest_document(element.path, filename, file_type)
-                    await cl.Message(content=f"Ingested **{filename}** (id: `{doc_id}`)").send()
+                    await cl.Message(content=f"Indexed **{filename}** (id: `{doc_id}`)").send()
                 except Exception as exc:
                     await cl.Message(content=f"Failed to ingest {filename}: {exc}").send()
 
         if not message.content:
             return
 
-    save_message(conv_id, "user", message.content)
+    # Load history BEFORE saving the new user message so it is not included
     history = load_history(conv_id, limit=20)
+    save_message(conv_id, "user", message.content)
 
     thinking_msg = cl.Message(content="")
     await thinking_msg.send()
 
     try:
-        answer = await run_agent(message.content, history[:-1])  # exclude the message we just saved
+        answer = await run_agent(message.content, history)
     except Exception as exc:
         answer = f"Something went wrong: {exc}"
 

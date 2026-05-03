@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime
 
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
@@ -12,6 +11,7 @@ from config.settings import (
     QDRANT_API_KEY,
     QDRANT_COLLECTION,
     EMBEDDING_MODEL,
+    OPENAI_API_KEY,
 )
 from db import client as db
 
@@ -32,7 +32,7 @@ def _ensure_collection(qdrant: QdrantClient) -> None:
 
 
 def get_vector_store() -> QdrantVectorStore:
-    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
+    embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL, api_key=OPENAI_API_KEY)
     qdrant = _get_qdrant_client()
     _ensure_collection(qdrant)
     return QdrantVectorStore(

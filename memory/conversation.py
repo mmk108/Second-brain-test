@@ -1,3 +1,4 @@
+import json
 import uuid
 from typing import List
 
@@ -34,7 +35,7 @@ def save_message(
             role,
             content,
             token_count,
-            __import__("json").dumps(retrieved_chunks or []),
+            json.dumps(retrieved_chunks or []),
             langsmith_run_id,
         ),
     )

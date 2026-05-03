@@ -1,13 +1,14 @@
 # Second Brain AI Agent
 
-A personal Jarvis-style AI agent that ingests your documents, remembers your conversations, learns your thinking style, and proactively surfaces relevant knowledge. Built on Claude (Anthropic), LangGraph, and Qdrant.
+A personal AI intelligence system that ingests your documents, remembers your conversations, learns your thinking style, and answers questions grounded in your actual knowledge. Built on Claude (Anthropic), LangGraph, Qdrant, and Chainlit.
 
 ## Quick Start
 
 ```bash
 # 1. Copy and fill in your API keys
 cp .env.example .env
-nano .env
+# Required: ANTHROPIC_API_KEY, OPENAI_API_KEY, LANGCHAIN_API_KEY,
+#           BASIC_AUTH_USERNAME, BASIC_AUTH_PASSWORD
 
 # 2. Start local services (Qdrant + PostgreSQL)
 docker compose up -d
@@ -20,23 +21,29 @@ pip install -r requirements.txt
 chainlit run interface/app.py
 ```
 
-Open [http://localhost:8000](http://localhost:8000) in your browser.
+Open [http://localhost:8000](http://localhost:8000) — log in with your `BASIC_AUTH_USERNAME` and `BASIC_AUTH_PASSWORD`.
+
+## Documentation
+
+| Document | Purpose |
+|---|---|
+| [PRODUCT_SPEC.md](./PRODUCT_SPEC.md) | Full requirements, use cases, user stories, and architecture — **source of truth** |
+| [CLAUDE.md](./CLAUDE.md) | Claude Code session guide — setup, known bugs, conventions, implementation order |
 
 ## Project Structure
 
 ```
-second-brain/
-├── ingestion/          # Document loaders, chunker, embedder → Qdrant
-├── memory/             # Conversation history and user profile (PostgreSQL)
-├── agents/             # LangGraph agent, retrieval tool, memory tool
-├── models/             # Claude (Anthropic) LLM wrapper
-├── interface/          # Chainlit web UI
-├── observability/      # LangSmith tracing config
-├── db/                 # PostgreSQL schema and connection helpers
-├── config/             # Settings loaded from environment variables
-├── tests/              # Pytest test suite
-├── docker-compose.yml  # Local Qdrant + PostgreSQL
-├── Dockerfile          # App container
+├── agents/          # LangGraph agent, retrieval tool, memory tool
+├── config/          # Environment variable loading
+├── db/              # PostgreSQL schema and connection helpers
+├── ingestion/       # Document loaders, chunker, embedder → Qdrant
+├── interface/       # Chainlit web UI
+├── memory/          # Conversation history and user profile (PostgreSQL)
+├── models/          # Claude (Anthropic) LLM wrapper
+├── observability/   # LangSmith tracing config
+├── tests/           # Pytest test suite
+├── docker-compose.yml
+├── Dockerfile
 ├── requirements.txt
 └── .env.example
 ```
@@ -45,11 +52,17 @@ second-brain/
 
 | Layer | Technology |
 |---|---|
-| LLM | Claude (Anthropic API) — `claude-sonnet-4-6` |
+| LLM | Claude `claude-sonnet-4-6` (Anthropic API) |
+| Embeddings | OpenAI `text-embedding-3-small` |
 | Orchestration | LangGraph |
 | UI | Chainlit |
 | Vector Store | Qdrant |
 | Database | PostgreSQL |
 | Observability | LangSmith |
 
-See [`instructions`](./instructions) for the full product spec, architecture, and roadmap.
+## Running Tests
+
+```bash
+source .venv/bin/activate
+pytest tests/ -v
+```

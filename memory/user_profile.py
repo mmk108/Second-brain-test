@@ -1,3 +1,5 @@
+import json
+
 from langchain_core.messages import BaseMessage
 
 from db import client as db
@@ -47,8 +49,19 @@ def upsert_fact(category: str, key: str, value: str, confidence: float = 1.0, co
     )
 
 
+def _strip_markdown_fences(text: str) -> str:
+    """Strip ```json ... ``` or ``` ... ``` wrappers that Claude adds by default."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        if text.startswith("json"):
+            text = text[4:]
+    return text.strip()
+
+
 async def extract_and_store(messages: list[BaseMessage], conversation_id: str) -> int:
-    import json
+    if not messages:
+        return 0
 
     conversation_text = "\n".join(
         f"{m.__class__.__name__.replace('Message', '')}: {m.content}" for m in messages
@@ -57,7 +70,7 @@ async def extract_and_store(messages: list[BaseMessage], conversation_id: str) -
 
     llm = get_llm(temperature=0.0, streaming=False)
     response = await llm.ainvoke(prompt)
-    raw = response.content.strip()
+    raw = _strip_markdown_fences(response.content)
 
     try:
         facts = json.loads(raw)
